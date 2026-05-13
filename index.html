@@ -91,7 +91,7 @@
                         
                         <div class="space-y-3 mb-4">
                             <div class="flex items-start">
-                                <span class="text-green-600 font-semibold text-sm w-16">花期：</span>
+                                <span class="text-green-600 font-semibold text-sm w-16">观赏期：</span>
                                 <span id="modal-flowering-period" class="text-sm text-gray-700 flex-1"></span>
                             </div>
                             <div class="flex items-start">
@@ -340,6 +340,9 @@
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1eGZkZHNtc2p4ZW9yamlvdmJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMTExNzAsImV4cCI6MjA5Mzc4NzE3MH0.55nNn85QiRpWfE1wcnEoCl9yW70jdCkCg3JL5J-QbKk';
         const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
         
+        const AI_API_KEY = 'sk-5680994452b742a3a3ebeeccafaede1d'; // ⚠️ 请把这里换成你真实的阿里千问 API Key
+        const AI_API_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions';
+
         // 全局变量存储当前图片数据
         let currentImageData = null;
         let currentPlantData = null;
@@ -411,132 +414,96 @@
             const file = event.target.files[0];
             if (!file) return;
             
-            // 验证文件类型
-            if (!file.type.startsWith('image/')) {
-                showToast('请选择图片文件！', 'error');
-                return;
-            }
-            
-            try {
-                // 压缩图片
-                const compressedDataUrl = await compressImage(file);
-                currentImageData = compressedDataUrl; // 保留压缩后的 data URL 用于显示
-                
-                // 提取纯 Base64 数据（去掉 data:image/...;base64, 前缀）
-                const base64Data = compressedDataUrl.split(',')[1];
-                currentBase64Data = base64Data;
-                
-                startPlantIdentification(base64Data);
-            } catch (error) {
-                console.error('图片压缩失败:', error);
-                showToast('图片处理失败，请重试！', 'error');
-            }
+            // 直接把整个 file 传过去，不用在这里转 base64 了
+            startPlantIdentification(file);
         }
 
         // 开始植物识别（带自动重试）
-        async function startPlantIdentification(base64Data, retryCount = 0) {
+        // 开始植物识别（前端直连 AI 版）
+        async function startPlantIdentification(file) {
             const uploadBox = document.getElementById('upload-box');
             const scanningBox = document.getElementById('scanning-box');
             
-            // 隐藏上传框，显示扫描动画
             uploadBox.classList.add('hidden');
             scanningBox.classList.remove('hidden');
-            
-            // 启动加载消息轮播
             startLoadingMessages();
-            
+
             try {
-                // 实时检测：检查 Base64 字符长度
-                console.log('准备发送的Base64字符长度:', base64Data.length);
+                // 1. 压缩图片 (保持画质)
+                const compressedDataUrl = await compressImage(file, 1024, 1024, 0.8);
+                const blob = await (await fetch(compressedDataUrl)).blob();
                 
-                // 标准检查：如果长度超过 50,000，不允许发送
-                if (base64Data.length > 50000) {
-                    throw new Error(`图片数据过大（${base64Data.length} 字符），请重新选择更小的图片或等待系统优化`);
-                }
+                // 2. 先把照片存到你的 Supabase 桶里
+                const fileName = `temp_${Date.now()}.jpg`;
+                const { data: uploadData, error: uploadError } = await supabaseClient.storage
+                    .from('flower-gallery')
+                    .upload(fileName, blob);
+
+                if (uploadError) throw new Error(`图片上传失败: ${uploadError.message}`);
+
+                // 3. 获取图片的公网 URL
+                const { data: { publicUrl } } = supabaseClient.storage
+                    .from('flower-gallery')
+                    .getPublicUrl(fileName);
                 
-                // 彻底去前缀：确保传给 RPC 的字符串绝对不包含 data:image 前缀
-                const cleanBase64 = base64Data.replace(/^data:image\/[a-z]+;base64,/, '');
-                console.log('清理后的Base64长度:', cleanBase64.length);
-                
-                // 创建带超时的 RPC 调用
-                const timeoutPromise = new Promise((_, reject) => {
-                    setTimeout(() => reject(new Error('识别超时')), 15000);
-                });
-                
-                const rpcPromise = supabaseClient.rpc('identify_plant_sql', {
-                    image_base64: cleanBase64
-                });
-                
-                // 使用 Promise.race 实现超时控制
-                const { data, error } = await Promise.race([
-                    rpcPromise,
-                    timeoutPromise.then(() => {
-                        throw new Error('识别超时，请稍后重试');
+                // 【重点】把 URL 记下来，留给后面“存入花草苑”使用
+                window.currentUploadedUrl = publicUrl; 
+
+                // 4. 前端直接呼叫千问大模型 (绕过 Supabase 超时限制)
+                const response = await fetch(AI_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${AI_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: 'qwen-vl-plus',
+                        messages:[
+                            {
+                                role: 'user',
+                                content:[
+                                    {
+                                        type: 'text',
+                                        text: 'text: 你是一位博学的植物学家。识别图中植物。只输出纯JSON对象，含:name(准确的中文学名，有别名请标注括号内), english_name(英语通用名), flowering_period(如果是开花植物，请写具体开花月份；如果是树木、草或观叶植物，请用通俗白话直接写明最适合观赏的季节或状态，例如“四季常青”、“秋季观黄叶”，不要文绉绉), meaning(在文化中准确的寓意), trivia(40字内的趣味小知识：冷门故事、命名由来，生动有温度)。【注意】：不要输出任何多余解释，只输出纯JSON。'
+                                    },
+                                    {
+                                        type: 'image_url',
+                                        image_url: { url: publicUrl }
+                                    }
+                                ]
+                            }
+                        ]
                     })
-                ]);
-                
-                if (error) {
-                    throw new Error(`植物识别失败: ${error.message}`);
+                });
+
+                if (!response.ok) {
+                    throw new Error(`AI 服务异常，状态码: ${response.status}`);
                 }
-                
-                // 处理纯文本响应
-                console.log('SQL函数返回的原始数据:', data);
-                
-                // 智能解析机制：检查错误标识
-                if (data.includes('ERROR_HTTP') || data.includes('ERROR_SQL')) {
-                    throw new Error(data);
-                }
-                
-                // 正则清理逻辑：移除markdown标记
-                let cleanText = data.replace(/```json/gi, '').replace(/```/g, '').trim();
-                console.log('清理后的文本:', cleanText);
-                
-                // 防御性JSON解析
+
+                // 5. 拿到 AI 的原话
+                const resultData = await response.json();
+                const aiReply = resultData.choices[0].message.content;
+
+                // 6. 解析 JSON（清洗多余的 markdown 符号）
+                let cleanText = aiReply.replace(/```json/gi, '').replace(/```/g, '').trim();
                 let plantInfo;
                 try {
                     plantInfo = JSON.parse(cleanText);
-                    console.log('解析成功的植物信息:', plantInfo);
-                } catch (parseError) {
-                    console.error('JSON解析失败:', parseError);
-                    console.error('原始数据:', data);
-                    // 提供保底对象
-                    plantInfo = {
-                        name: "未知植物",
-                        english_name: "",
-                        flowering_period: "请补充",
-                        meaning: "请补充",
-                        trivia: "请补充"
-                    };
-                    console.log('使用保底植物信息:', plantInfo);
+                } catch (e) {
+                    console.error("解析失败的原文:", cleanText);
+                    plantInfo = { name: "未知植物", english_name: "", flowering_period: "请补充", meaning: "请补充", trivia: "AI开小差了，可手动修改名字" };
                 }
-                
-                // 存储解析后的植物信息
+
                 currentPlantData = plantInfo;
+                currentImageData = compressedDataUrl; 
                 
-                // 停止加载消息轮播
                 stopLoadingMessages();
-                
-                // 显示识别结果
                 showResultModal();
-                
+
             } catch (error) {
-                console.error('植物识别错误:', error);
-                
-                // 自动重试机制
-                if (retryCount === 0) {
-                    console.log('第一次失败，1秒后自动重试...');
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                    return startPlantIdentification(base64Data, retryCount + 1);
-                }
-                
-                // 停止加载消息轮播
+                console.error('识别失败:', error);
                 stopLoadingMessages();
-                
-                // 第二次失败，显示友好错误提示
-                const friendlyMessage = getFriendlyErrorMessage(error.message);
-                showToast(friendlyMessage, 'error');
-                
-                // 恢复上传框
+                showToast(getFriendlyErrorMessage(error.message));
                 scanningBox.classList.add('hidden');
                 uploadBox.classList.remove('hidden');
             }
@@ -692,98 +659,57 @@
         }
 
         // 存入花草苑
+        // 存入花草苑 (直接存数据库)
         async function saveToGarden() {
-            if (!currentPlantData || !currentBase64Data) {
-                showToast('没有可保存的植物数据！', 'error');
+            // 检查有没有刚才上传好的图片 URL
+            if (!currentPlantData || !window.currentUploadedUrl) {
+                showToast('数据不完整，请重新识别', 'error');
                 return;
             }
             
             try {
-                // 获取用户输入的数据
                 const location = document.getElementById('modal-location').value.trim();
                 const notes = document.getElementById('modal-notes').value.trim();
                 
-                // 1. 将 Base64 数据转换为 Blob
-                const base64Response = await fetch(`data:image/jpeg;base64,${currentBase64Data}`);
-                const blob = await base64Response.blob();
-                
-                // 2. 生成唯一的文件名（避免中文和特殊字符）
-                const fileName = `${Date.now()}.jpg`;
-                
-                // 3. 上传图片到 Supabase Storage
-                const { data: uploadData, error: uploadError } = await supabaseClient.storage
-                    .from('flower-gallery')
-                    .upload(fileName, blob, {
-                        contentType: 'image/jpeg',
-                        cacheControl: '3600',
-                        upsert: false
-                    });
-                
-                if (uploadError) {
-                    throw new Error(`图片上传失败: ${uploadError.message}`);
-                }
-                
-                // 4. 获取图片的公共 URL
-                const { data: { publicUrl } } = supabaseClient.storage
-                    .from('flower-gallery')
-                    .getPublicUrl(fileName);
-                
-                // 5. 第一步：保存植物信息到 flower_plants 表
+                // 拿到用户可能修改过的新名字
+                const finalName = document.getElementById('modal-plant-name').textContent;
+
+                // 存入植物基础表
                 const { data: plantData, error: insertError } = await supabaseClient
                     .from('flower_plants')
                     .insert({
-                        name: currentPlantData.name || '未知植物',
+                        name: finalName || '未知植物',
                         english_name: currentPlantData.english_name || '',
                         flowering_period: currentPlantData.flowering_period || '未知',
                         meaning: currentPlantData.meaning || '未知',
                         trivia: currentPlantData.trivia || '未知',
                         location: location || '',
-                        image_url: publicUrl,
+                        image_url: window.currentUploadedUrl, // 直接使用全局图片 URL
                         created_at: new Date().toISOString()
                     })
                     .select()
                     .single();
                 
-                if (insertError) {
-                    throw new Error(`植物数据保存失败: ${insertError.message}`);
-                }
+                if (insertError) throw new Error(`数据保存失败: ${insertError.message}`);
                 
-                console.log('植物数据保存成功:', plantData);
-                
-                // 6. 第二步：如果用户填了随笔，保存到 flower_stories 表
+                // 如果有随笔，存入故事表
                 if (notes) {
-                    const { data: storyData, error: storyError } = await supabaseClient
-                        .from('flower_stories')
-                        .insert({
-                            plant_id: plantData.id,
-                            content: notes,
-                            image_url: publicUrl,
-                            created_at: new Date().toISOString()
-                        })
-                        .select()
-                        .single();
-                    
-                    if (storyError) {
-                        console.error('随笔保存失败:', storyError);
-                    } else {
-                        console.log('随笔保存成功:', storyData);
-                    }
+                    await supabaseClient.from('flower_stories').insert({
+                        plant_id: plantData.id,
+                        content: notes,
+                        image_url: window.currentUploadedUrl,
+                        created_at: new Date().toISOString()
+                    });
                 }
                 
                 showToast('成功存入花草苑！', 'success');
-                
-                // 关闭弹窗
                 closeModal();
-                
-                // 切换到花草苑 Tab
                 switchTab('garden');
-                
-                // 刷新花草苑页面显示新添加的植物
                 loadGardenPlants();
                 
             } catch (error) {
                 console.error('保存失败:', error);
-                showToast('保存失败，请重试：' + error.message, 'error');
+                showToast('保存失败：' + error.message, 'error');
             }
         }
 
@@ -927,7 +853,7 @@
             document.getElementById('detail-plant-name').setAttribute('data-plant-id', plant.id);
             document.getElementById('detail-created-date').textContent = `首次记录: ${new Date(plant.created_at).toLocaleDateString()}`;
             document.getElementById('detail-english-name').innerHTML = plant.english_name ? `<strong>英语名：</strong>${plant.english_name}` : '';
-            document.getElementById('detail-flowering-period').innerHTML = plant.flowering_period ? `<strong>花期：</strong>${plant.flowering_period}` : '';
+            document.getElementById('detail-flowering-period').innerHTML = plant.flowering_period ? `<strong>观赏期：</strong>${plant.flowering_period}` : '';
             document.getElementById('detail-meaning').innerHTML = plant.meaning ? `<strong>寓意：</strong>${plant.meaning}` : '';
             document.getElementById('detail-trivia').innerHTML = plant.trivia ? `<strong>小知识：</strong>${plant.trivia}` : '';
             document.getElementById('detail-location').value = plant.location || '';
