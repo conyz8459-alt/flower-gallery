@@ -20,6 +20,7 @@
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        
 
         /* 扫描动画 */
         .scan-line {
@@ -37,31 +38,57 @@
         }
     </style>
 </head>
-<body class="bg-gray-100 flex justify-center items-center h-screen">
+<!-- 修改后 -->
+<body class="bg-gray-100 flex justify-center items-center h-[100dvh]">
 
     <!-- 模拟手机屏幕容器 -->
     <div class="w-full max-w-md h-full sm:h-[850px] bg-[#f8fdf9] sm:rounded-[2.5rem] sm:shadow-2xl relative overflow-hidden flex flex-col text-green-900">
         
         <!-- 页面 1: 识别花草 (Identify View) -->
         <div id="view-identify" class="flex-1 overflow-y-auto hide-scrollbar p-6 pb-24 fade-in">
-            <h1 class="text-2xl font-bold text-green-800 mb-2 mt-4">发现新花草</h1>
-            <p class="text-sm text-green-600 mb-6">拍一拍，认识自然的朋友</p>
-
-            <!-- 核心上传区 -->
-            <div id="upload-box" class="w-full aspect-[4/5] bg-white border-2 border-dashed border-green-300 rounded-3xl flex flex-col justify-center items-center cursor-pointer hover:bg-green-50 transition shadow-sm">
-                <input type="file" accept="image/*" class="hidden" id="file-input">
-                <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4 text-green-500">
-                    <i class="fa-solid fa-camera text-2xl"></i>
-                </div>
-                <p class="text-lg font-medium text-green-700">点击拍照或上传图片</p>
+           <!-- 1. 标题与文艺介绍语 (增加排版层级与高级感) -->
+            <div class="mb-8 mt-4 pl-2">
+                <h1 class="text-3xl font-extrabold text-green-800 tracking-tight flex flex-col gap-2">
+                    发现新花草
+                    <span class="text-sm font-normal text-green-600/80 tracking-widest font-serif">花草苑 —— 你的私人植物志</span>
+                </h1>
+                <p class="text-sm text-gray-500 mt-5 leading-relaxed tracking-wide border-l-2 border-green-300 pl-3">
+                    可以在这里记录下你身边的那株花草，<br>一花一叶，建造你的电子花草苑。
+                </p>
             </div>
 
-            <!-- 模拟 AI 识别中 (初始隐藏) -->
-            <div id="scanning-box" class="hidden w-full aspect-[4/5] bg-gray-200 rounded-3xl relative overflow-hidden shadow-md">
-                <img src="https://images.unsplash.com/photo-1555037015-1498966bcd7c?auto=format&fit=crop&w=400&q=80" class="w-full h-full object-cover opacity-80" alt="扫描中">
-                <div class="scan-line"></div>
-                <div class="absolute bottom-4 left-0 w-full text-center text-white font-bold drop-shadow-md">
-                    AI 正在识别中...
+            <!-- 2. 浮空卡片容器 (增加外层空间与剪影装饰，增强呼吸感) -->
+            <div class="relative w-full aspect-[4/5] mx-auto mt-6 max-w-sm">
+                <!-- 底部植物剪影装饰 (放在卡片背后的空间) -->
+                <i class="fa-brands fa-pagelines absolute -bottom-6 -left-4 text-8xl text-green-200/40 -rotate-45 pointer-events-none z-0"></i>
+                <i class="fa-solid fa-leaf absolute -top-4 -right-4 text-6xl text-green-200/30 rotate-12 pointer-events-none z-0"></i>
+
+                <!-- 核心上传区 (浮空卡片设计) -->
+                <div id="upload-box" class="absolute inset-0 bg-white/95 backdrop-blur-sm rounded-[2.5rem] flex flex-col justify-center items-center cursor-pointer hover:-translate-y-2 hover:shadow-2xl shadow-xl shadow-green-900/10 border border-white transition-all duration-500 z-10 group overflow-hidden">
+                    <input type="file" accept="image/*" class="hidden" id="file-input">
+                    
+                    <!-- 卡片内部隐约的植物剪影 -->
+                    <i class="fa-solid fa-seedling absolute -bottom-8 -right-8 text-[10rem] text-green-50 opacity-60 group-hover:scale-110 transition-transform duration-700 pointer-events-none"></i>
+
+                    <!-- 高级感相机图标 -->
+                    <div class="w-20 h-20 bg-gradient-to-br from-green-50 to-green-100 rounded-full flex items-center justify-center mb-6 text-green-500 shadow-inner group-hover:scale-105 transition-transform duration-300 z-10">
+                        <i class="fa-solid fa-camera text-3xl"></i>
+                    </div>
+                    
+                    <h3 class="text-xl font-bold text-green-800 mb-2 z-10">点击拍照或上传</h3>
+                    <p class="text-xs text-green-500/70 tracking-widest uppercase z-10 font-medium">Capture the Nature</p>
+                </div>
+
+                <!-- 模拟 AI 识别中 (匹配新的卡片圆角和阴影) -->
+                <div id="scanning-box" class="hidden absolute inset-0 bg-gray-200 rounded-[2.5rem] overflow-hidden shadow-2xl z-10 border border-white">
+                    <img src="https://images.unsplash.com/photo-1555037015-1498966bcd7c?auto=format&fit=crop&w=400&q=80" class="w-full h-full object-cover opacity-80" alt="扫描中">
+                    <div class="scan-line"></div>
+                    <!-- 底部黑色渐变，让白色文字更清晰 -->
+                    <div class="absolute inset-0 bg-gradient-to-t from-green-900/90 via-green-900/20 to-transparent"></div>
+                    <div class="absolute bottom-10 left-0 w-full text-center text-white font-bold tracking-widest">
+                        <i class="fa-solid fa-circle-notch fa-spin mr-2"></i> AI 正在识别中...
+                        <p class="text-xs font-normal opacity-80 mt-3 absolute w-full left-0" id="loading-text">正在连线植物学家...</p>
+                    </div>
                 </div>
             </div>
 
@@ -84,8 +111,12 @@
                     
                     <!-- 植物信息 -->
                     <div class="p-6">
-                        <div class="mb-4">
-                            <h2 id="modal-plant-name" class="text-2xl font-bold text-green-800 mb-1"></h2>
+                       <div class="mb-4">
+                            <!-- 改为可编辑的输入框 -->
+                            <div class="flex items-center gap-2 mb-1">
+                                <input id="modal-plant-name-input" type="text" class="text-2xl font-bold text-green-800 bg-transparent border-b border-transparent hover:border-green-200 focus:border-green-400 focus:outline-none w-full transition" value="" />
+                                <i class="fa-solid fa-pen text-green-400 text-sm"></i>
+                            </div>
                             <p id="modal-english-name" class="text-sm text-gray-500 italic mb-2"></p>
                         </div>
                         
@@ -175,8 +206,8 @@
                     <i class="fa-solid fa-arrow-left"></i>
                 </button>
                 <!-- 更换图片按钮 -->
-                <button onclick="changePlantImage()" class="absolute top-6 right-4 w-10 h-10 bg-white/70 backdrop-blur-md rounded-full flex justify-center items-center text-gray-800 shadow-sm hover:bg-white/80 transition">
-                    <i class="fa-solid fa-camera text-sm"></i>
+                <button onclick="changePlantImage()" class="absolute top-6 right-4 px-4 py-2 bg-white/80 backdrop-blur-md rounded-full flex justify-center items-center text-gray-800 shadow-sm hover:bg-white transition text-sm font-bold">
+                    <i class="fa-solid fa-camera mr-2 text-green-600"></i> 替换封面图
                 </button>
             </div>
 
@@ -191,10 +222,10 @@
                     <p><span id="detail-flowering-period"></span></p>
                     <p><span id="detail-meaning"></span></p>
                     <p><span id="detail-trivia"></span></p>
+                    <!-- 详情页原来的 input 替换为 span -->
                     <p class="flex items-center">
                         <strong>位置：</strong> 
-                        <!-- 可编辑的位置输入框 -->
-                        <input id="detail-location" type="text" class="ml-2 bg-gray-50 border border-gray-200 rounded px-2 py-1 text-sm outline-none focus:border-green-400 w-32 text-gray-700">
+                        <span id="detail-location" contenteditable="true" class="ml-2 bg-gray-50 border border-gray-200 rounded px-2 py-1 text-sm outline-none focus:border-green-400 text-gray-700 min-w-[5rem] inline-block transition-all"></span>
                         <i class="fa-solid fa-pen text-gray-400 ml-2 text-xs"></i>
                     </p>
                 </div>
@@ -217,7 +248,8 @@
         </div>
 
         <!-- 底部导航栏 (Bottom Tab Bar) -->
-        <div class="absolute bottom-0 left-0 w-full bg-white/80 backdrop-blur-md border-t border-gray-100 pb-safe z-10">
+        <!-- 修改后 -->
+        <div class="w-full bg-white/80 backdrop-blur-md border-t border-gray-100 pb-safe z-50 mt-auto shrink-0">
             <div class="flex justify-around items-center h-16">
                 <button onclick="switchTab('identify')" id="tab-identify" class="flex flex-col items-center justify-center w-full h-full text-green-600 transition">
                     <i class="fa-solid fa-expand text-xl mb-1"></i>
@@ -457,14 +489,14 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        model: 'qwen-vl-plus',
+                        model: 'qwen3.5-omni-flash',
                         messages:[
                             {
                                 role: 'user',
                                 content:[
                                     {
                                         type: 'text',
-                                        text: 'text: 你是一位博学的植物学家。识别图中植物。只输出纯JSON对象，含:name(准确的中文学名，有别名请标注括号内), english_name(英语通用名), flowering_period(如果是开花植物，请写具体开花月份；如果是树木、草或观叶植物，请用通俗白话直接写明最适合观赏的季节或状态，例如“四季常青”、“秋季观黄叶”，不要文绉绉), meaning(在文化中准确的寓意), trivia(40字内的趣味小知识：冷门故事、命名由来，生动有温度)。【注意】：不要输出任何多余解释，只输出纯JSON。'
+                                        text: 'text: 你是一位隐居山林、对自然万物充满温情的植物学家。请识别图中最中心、最主要的植物。请严格按照以下 JSON 格式输出，严禁任何 markdown 标签（如 ```json）或解释说明。格式如下，"name": "准确的中文名称，若有常用的雅致别名可标注在括号内，小众的就算了（如：虞美人）","english_name": "常用的英文通用名","flowering_period": "若是花，写具体月份；若是观叶/树木，写最美观赏季（如：夏天赏绿叶，秋天赏黄叶；四季常青），禁止使用文绉绉的术语","meaning": "该植物在文化中准确的寓意或象征，用简单词语或短句概括，要求简洁、独特、准确、好理解（如朱砂梅寓意：坚韧不拔，高洁清雅；玫瑰寓意：爱情，尊重与优雅）","trivia": "50字内趣味点。可以是独特的生存策略、命名背后的历史瞬间、或植物学怪癖。拒绝平庸的养护建议，可以联系诗词、典故、外国故事等等，要像讲故事一样有温度。要求：句子可以稍微长一些，保证可读性；同时保证准确性，不可出现虚假编造或错误内容"。 【核心准则】：1.去噪与聚焦：若图中有多株植物，仅识别视觉中心最突出的主体。2.拒绝幻觉：若图中主体植物特征模糊或无法确定，name 字段请返回“某种[类别]（待鉴定）”，并在 trivia 中注明理由。3. 精准命名：name 字段仅输出该植物最核心的名字，严禁为了“科普”而带入易混淆植物（例如：绝对禁止写成“芍药（牡丹）”或“蔷薇（月季）”）。4.语调要求：文字需洗练、充满对自然的敬畏感，避免机械化、说明书式的陈述。'
                                     },
                                     {
                                         type: 'image_url',
@@ -625,7 +657,7 @@
             
             // 填充数据到弹窗
             document.getElementById('modal-plant-image').src = currentImageData;
-            document.getElementById('modal-plant-name').textContent = currentPlantData.name || '未知植物';
+            document.getElementById('modal-plant-name-input').value = currentPlantData.name || '未知植物';
             document.getElementById('modal-english-name').textContent = currentPlantData.english_name || '';
             document.getElementById('modal-flowering-period').textContent = currentPlantData.flowering_period || '未知';
             document.getElementById('modal-meaning').textContent = currentPlantData.meaning || '未知';
@@ -672,7 +704,7 @@
                 const notes = document.getElementById('modal-notes').value.trim();
                 
                 // 拿到用户可能修改过的新名字
-                const finalName = document.getElementById('modal-plant-name').textContent;
+                const finalName = document.getElementById('modal-plant-name-input').value.trim();
 
                 // 存入植物基础表
                 const { data: plantData, error: insertError } = await supabaseClient
@@ -766,16 +798,23 @@
                 card.onclick = () => openPlantDetail(plant);
                 
                 card.innerHTML = `
-                    <div class="relative">
-                        <img src="${plant.image_url || 'https://images.unsplash.com/photo-1555037015-1498966bcd7c?auto=format&fit=crop&w=400&q=80'}" class="w-full h-32 object-cover" alt="${plant.name}">
-                        <!-- 删除按钮 -->
-                        <button class="delete-btn absolute top-2 right-2 w-6 h-6 flex items-center justify-center hover:bg-gray-100 transition z-10">
-                            <i class="fa-solid fa-times text-xs text-gray-400"></i>
+                    <div class="relative group">
+                        <img src="${plant.image_url || 'https://images.unsplash.com/photo-1555037015-1498966bcd7c?auto=format&fit=crop&w=400&q=80'}" class="w-full h-40 object-cover transition duration-500 group-hover:scale-105" alt="${plant.name}">
+                        <!-- 底部微渐变 -->
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition duration-300"></div>
+                        <!-- 删除按钮 (悬浮显示) -->
+                        <button class="delete-btn absolute top-2 right-2 w-8 h-8 bg-white/90 backdrop-blur rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all z-10 hover:bg-red-50 shadow-sm">
+                            <i class="fa-solid fa-trash-alt text-sm text-gray-500 hover:text-red-500"></i>
                         </button>
                     </div>
-                    <div class="p-3">
-                        <h3 class="font-bold text-gray-800">${plant.name}</h3>
-                        <p class="text-xs text-gray-500 mt-1"><i class="fa-solid fa-location-dot mr-1"></i>首次记录: ${new Date(plant.created_at).toLocaleDateString()}</p>
+                    <div class="p-3 bg-white relative z-10">
+                        <h3 class="font-bold text-gray-800 text-lg truncate">${plant.name}</h3>
+                        <div class="mt-2">
+                            ${plant.location 
+                                ? `<span class="inline-flex items-center bg-green-50 text-green-600 px-2 py-1 rounded-full text-xs font-medium"><i class="fa-solid fa-location-dot mr-1"></i>${plant.location}</span>` 
+                                : `<span class="inline-flex items-center bg-gray-50 text-gray-400 px-2 py-1 rounded-full text-xs"><i class="fa-solid fa-location-dot mr-1"></i>暂未填写位置</span>`
+                            }
+                        </div>
                     </div>
                 `;
                 
@@ -856,23 +895,24 @@
             document.getElementById('detail-flowering-period').innerHTML = plant.flowering_period ? `<strong>观赏期：</strong>${plant.flowering_period}` : '';
             document.getElementById('detail-meaning').innerHTML = plant.meaning ? `<strong>寓意：</strong>${plant.meaning}` : '';
             document.getElementById('detail-trivia').innerHTML = plant.trivia ? `<strong>小知识：</strong>${plant.trivia}` : '';
-            document.getElementById('detail-location').value = plant.location || '';
+            
+            // 【关键点】：因为变成了 span，这里使用 textContent，而不是 .value
+            const locationSpan = document.getElementById('detail-location');
+            locationSpan.textContent = plant.location || '';
             
             // 加载植物故事
             loadPlantStories(plant.id);
             
-            // 添加位置编辑事件（移除旧的监听器避免重复）
-            const locationInput = document.getElementById('detail-location');
+            // 移除旧监听器（通过克隆 span 实现）
+            const newLocationSpan = locationSpan.cloneNode(true);
+            locationSpan.parentNode.replaceChild(newLocationSpan, locationSpan);
             
-            // 克隆元素以移除所有事件监听器
-            const newLocationInput = locationInput.cloneNode(true);
-            locationInput.parentNode.replaceChild(newLocationInput, locationInput);
-            
-            // 添加新的事件监听器
-            newLocationInput.addEventListener('blur', () => updatePlantLocation(plant.id, newLocationInput.value));
-            newLocationInput.addEventListener('keypress', (e) => {
+            // 添加新监听器
+            newLocationSpan.addEventListener('blur', () => updatePlantLocation(plant.id, newLocationSpan.textContent.trim()));
+            newLocationSpan.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
-                    updatePlantLocation(plant.id, newLocationInput.value);
+                    e.preventDefault(); // 防止换行
+                    newLocationSpan.blur(); // 触发 blur 保存
                 }
             });
         }
@@ -883,21 +923,14 @@
                 const { data, error } = await supabaseClient
                     .from('flower_plants')
                     .update({ location: location })
-                    .eq('id', plantId)
-                    .select()
-                    .single();
+                    .eq('id', plantId); // 注意：update 后不需要 .select().single() 也能执行更新
                 
-                if (error) {
-                    console.error('更新位置失败:', error);
-                    showToast('更新位置失败', 'error');
-                } else {
-                    console.log('位置更新成功:', data);
-                    showToast('位置已更新', 'success');
-                    // 刷新花园视图以显示更新
-                    loadGardenPlants();
-                }
+                if (error) throw error;
+                
+                showToast('位置已更新', 'success');
+                loadGardenPlants(); // 刷新花园视图
             } catch (error) {
-                console.error('更新位置错误:', error);
+                console.error('更新位置失败:', error);
                 showToast('更新位置失败', 'error');
             }
         }
@@ -1023,9 +1056,16 @@
                 
                 storyCard.innerHTML = `
                     <div class="absolute -left-[9px] top-1 w-4 h-4 ${isToday ? 'bg-green-500' : 'bg-green-300'} rounded-full border-4 border-white shadow-sm"></div>
-                    <p class="text-xs text-gray-400 mb-1">${isToday ? '今天' : date.toLocaleDateString()}</p>
-                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                        <p class="text-sm text-gray-700 leading-relaxed mb-3">${story.content}</p>
+                    <div class="flex justify-between items-center mb-1">
+                        <p class="text-xs text-gray-400">${isToday ? '今天' : date.toLocaleDateString()}</p>
+                        <!-- 新增：编辑和删除按钮 -->
+                        <div class="flex gap-3">
+                            <button onclick="editStory('${story.id}', \`${story.content.replace(/`/g, "'")}\`, '${story.plant_id}')" class="text-gray-300 hover:text-green-500 transition"><i class="fa-solid fa-pen text-xs"></i></button>
+                            <button onclick="deleteStory('${story.id}', '${story.plant_id}')" class="text-gray-300 hover:text-red-500 transition"><i class="fa-solid fa-trash text-xs"></i></button>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 group">
+                        <p class="text-sm text-gray-700 leading-relaxed mb-3 whitespace-pre-wrap">${story.content}</p>
                         ${story.image_url ? `<img src="${story.image_url}" class="rounded-xl w-32 h-32 object-cover">` : ''}
                     </div>
                 `;
@@ -1128,6 +1168,34 @@
         function closeDetail() {
             document.getElementById('view-detail').classList.add('hidden');
         }
+
+        // 动态删除随笔
+        async function deleteStory(storyId, plantId) {
+            if(!confirm('确定要删除这条记录吗？')) return;
+            try {
+                const { error } = await supabaseClient.from('flower_stories').delete().eq('id', storyId);
+                if(error) throw error;
+                showToast('随笔已删除', 'success');
+                loadPlantStories(plantId); // 实时无刷新更新时间轴
+            } catch (err) {
+                showToast('删除失败: ' + err.message);
+            }
+        }
+
+        // 动态编辑随笔
+        async function editStory(storyId, oldContent, plantId) {
+            const newContent = prompt('修改你的随笔：', oldContent);
+            if (newContent === null || newContent.trim() === oldContent || newContent.trim() === '') return;
+            try {
+                const { error } = await supabaseClient.from('flower_stories').update({ content: newContent.trim() }).eq('id', storyId);
+                if(error) throw error;
+                showToast('随笔已更新', 'success');
+                loadPlantStories(plantId); // 实时无刷新更新时间轴
+            } catch (err) {
+                showToast('更新失败: ' + err.message);
+            }
+        }
+
     </script>
 </body>
 </html>
