@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>花草苑 - 我的私人植物志</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Supabase 客户端 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- 引入 FontAwesome 图标 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* 自定义一些动画和隐藏滚动条 */
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+
+        /* 扫描动画 */
+        .scan-line {
+            position: absolute;
+            width: 100%;
+            height: 4px;
+            background: rgba(34, 197, 94, 0.8);
+            box-shadow: 0 0 10px rgba(34, 197, 94, 0.8);
+            animation: scan 2s infinite linear;
+        }
+        @keyframes scan {
+            0% { top: 0; }
+            50% { top: 100%; }
+            100% { top: 0; }
+        }
+    </style>
+</head>
+<!-- 修改后 -->
+<body class="bg-gray-100 flex justify-center items-center h-[100dvh]">
+
+    <!-- 模拟手机屏幕容器 -->
+    <div class="w-full max-w-md h-full sm:h-[850px] bg-[#f8fdf9] sm:rounded-[2.5rem] sm:shadow-2xl relative overflow-hidden flex flex-col text-green-900">
+        
+        <!-- 页面 1: 识别花草 (Identify View) -->
+        <div id="view-identify" class="flex-1 overflow-y-auto hide-scrollbar p-6 pb-24 fade-in">
+           <!-- 1. 标题与文艺介绍语 (增加排版层级与高级感) -->
+            <div class="mb-8 mt-4 pl-2">
+                <h1 class="text-3xl font-extrabold text-green-800 tracking-tight flex flex-col gap-2">
+                    发现新花草
+                    <span class="text-sm font-normal text-green-600/80 tracking-widest font-serif">花草苑 —— 你的私人植物志</span>
+                </h1>
+                <p class="text-sm text-gray-500 mt-5 leading-relaxed tracking-wide border-l-2 border-green-300 pl-3">
+                    可以在这里记录下你身边的那株花草，<br>一花一叶，建造你的电子花草苑。
+                </p>
+            </div>
+
+            <!-- 2. 浮空卡片容器 (增加外层空间与剪影装饰，增强呼吸感) -->
+            <div class="relative w-full aspect-[4/5] mx-auto mt-6 max-w-sm">
+                <!-- 底部植物剪影装饰 (放在卡片背后的空间) -->
+                <i class="fa-brands fa-pagelines absolute -bottom-6 -left-4 text-8xl text-green-200/40 -rotate-45 pointer-events-none z-0"></i>
+                <i class="fa-solid fa-leaf absolute -top-4 -right-4 text-6xl text-green-200/30 rotate-12 pointer-events-none z-0"></i>
+
+                <!-- 核心上传区 (浮空卡片设计) -->
+                <div id="upload-box" class="absolute inset-0 bg-white/95 backdrop-blur-sm rounded-[2.5rem] flex flex-col justify-center items-center cursor-pointer hover:-translate-y-2 hover:shadow-2xl shadow-xl shadow-green-900/10 border border-white transition-all duration-500 z-10 group overflow-hidden">
+                    <input type="file" accept="image/*" class="hidden" id="file-input">
+                    
+                    <!-- 卡片内部隐约的植物剪影 -->
+                    <i class="fa-solid fa-seedling absolute -bottom-8 -right-8 text-[10rem] text-green-50 opacity-60 group-hover:scale-110 transition-transform duration-700 pointer-events-none"></i>
+
+                    <!-- 高级感相机图标 -->
+                    <div class="w-20 h-20 bg-gradient-to-br from-green-50 to-green-100 rounded-full flex items-center justify-center mb-6 text-green-500 shadow-inner group-hover:scale-105 transition-transform duration-300 z-10">
+                        <i class="fa-solid fa-camera text-3xl"></i>
+                    </div>
+                    
+                    <h3 class="text-xl font-bold text-green-800 mb-2 z-10">点击拍照或上传</h3>
+                    <p class="text-xs text-green-500/70 tracking-widest uppercase z-10 font-medium">Capture the Nature</p>
+                </div>
+
+                <!-- 模拟 AI 识别中 (匹配新的卡片圆角和阴影) -->
+                <div id="scanning-box" class="hidden absolute inset-0 bg-gray-200 rounded-[2.5rem] overflow-hidden shadow-2xl z-10 border border-white">
+                    <img src="https://images.unsplash.com/photo-1555037015-1498966bcd7c?auto=format&fit=crop&w=400&q=80" class="w-full h-full object-cover opacity-80" alt="扫描中">
+                    <div class="scan-line"></div>
+                    <!-- 底部黑色渐变，让白色文字更清晰 -->
+                    <div class="absolute inset-0 bg-gradient-to-t from-green-900/90 via-green-900/20 to-transparent"></div>
+                    <div class="absolute bottom-10 left-0 w-full text-center text-white font-bold tracking-widest">
+                        <i class="fa-solid fa-circle-notch fa-spin mr-2"></i> AI 正在识别中...
+                        <p class="text-xs font-normal opacity-80 mt-3 absolute w-full left-0" id="loading-text">正在连线植物学家...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 识别结果弹窗 Modal -->
+            <div id="result-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+                <!-- 半透明黑色遮罩 -->
+                <div class="absolute inset-0 bg-black/50" onclick="closeModal()"></div>
+                
+                <!-- Modal 卡片 -->
+                <div class="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full mx-4 max-h-[85vh] overflow-y-auto">
+                    <!-- 关闭按钮 -->
+                    <button onclick="closeModal()" class="absolute top-4 right-4 w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition z-10">
+                        <i class="fa-solid fa-times text-gray-600"></i>
+                    </button>
+                    
+                    <!-- 植物图片预览 -->
+                    <div class="w-full h-48 bg-gray-100 rounded-t-3xl overflow-hidden">
+                        <img id="modal-plant-image" src="" alt="植物图片" class="w-full h-full object-cover">
+                    </div>
+                    
+                    <!-- 植物信息 -->
+                    <div class="p-6">
+                       <div class="mb-4">
+                            <!-- 改为可编辑的输入框 -->
+                            <div class="flex items-center gap-2 mb-1">
+                                <input id="modal-plant-name-input" type="text" class="text-2xl font-bold text-green-800 bg-transparent border-b border-transparent hover:border-green-200 focus:border-green-400 focus:outline-none w-full transition" value="" />
+                                <i class="fa-solid fa-pen text-green-400 text-sm"></i>
+                            </div>
+                            <p id="modal-english-name" class="text-sm text-gray-500 italic mb-2"></p>
+                        </div>
+                        
+                        <div class="space-y-3 mb-4">
+                            <div class="flex items-start">
+                                <span class="text-green-600 font-semibold text-sm w-16">观赏期：</span>
+                                <span id="modal-flowering-period" class="text-sm text-gray-700 flex-1"></span>
+                            </div>
+                            <div class="flex items-start">
+                                <span class="text-green-600 font-semibold text-sm w-16">寓意：</span>
+                                <span id="modal-meaning" class="text-sm text-gray-700 flex-1"></span>
+                            </div>
+                            <div class="flex items-start">
+                                <span class="text-green-600 font-semibold text-sm w-16">小知识：</span>
+                                <span id="modal-trivia" class="text-sm text-gray-700 flex-1"></span>
+                            </div>
+                        </div>
+                        
+                        <!-- 用户输入项 -->
+                        <div class="space-y-3 mb-6">
+                            <div>
+                                <label class="text-green-600 font-semibold text-sm block mb-1">地点</label>
+                                <input id="modal-location" type="text" placeholder="这株植物放在哪里呢？" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-green-400 text-sm">
+                            </div>
+                            <div>
+                                <label class="text-green-600 font-semibold text-sm block mb-1">随笔</label>
+                                <textarea id="modal-notes" placeholder="记录下这株植物的故事吧..." rows="3" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-green-400 text-sm resize-none"></textarea>
+                            </div>
+                        </div>
+                        
+                        <!-- 存入花草苑按钮 -->
+                        <button onclick="saveToGarden()" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-full shadow-md transition flex justify-center items-center gap-2">
+                            <i class="fa-solid fa-leaf"></i> 存入花草苑
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 重试识别弹窗 Modal -->
+        <div id="retry-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+            <!-- 半透明黑色遮罩 -->
+            <div class="absolute inset-0 bg-black/50" onclick="cancelRetry()"></div>
+            
+            <!-- Modal 卡片 -->
+            <div class="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full mx-4 p-6">
+                <!-- 错误图标 -->
+                <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fa-solid fa-exclamation-triangle text-red-500 text-2xl"></i>
+                </div>
+                
+                <!-- 错误信息 -->
+                <div class="text-center mb-6">
+                    <h3 class="text-lg font-bold text-gray-800 mb-2">识别失败</h3>
+                    <p id="retry-error-message" class="text-sm text-gray-600"></p>
+                </div>
+                
+                <!-- 按钮组 -->
+                <div class="flex gap-3">
+                    <button onclick="cancelRetry()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 rounded-full transition">
+                        取消
+                    </button>
+                    <button onclick="retryIdentification()" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-full transition flex justify-center items-center gap-2">
+                        <i class="fa-solid fa-redo"></i> 再试一次
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 页面 2: 花草苑 (Garden View) -->
+        <div id="view-garden" class="hidden flex-1 overflow-y-auto hide-scrollbar p-6 pb-24 fade-in">
+            <h1 class="text-2xl font-bold text-green-800 mb-2 mt-4">我的花草苑</h1>
+            <p class="text-sm text-green-600 mb-6">共记录了 3 株植物</p>
+
+            <!-- 瀑布流/网格卡片排列 -->
+            <div class="grid grid-cols-2 gap-4">
+                <!-- 植物卡片将通过JavaScript动态加载 -->
+            </div>
+        </div>
+
+        <!-- 页面 3: 植物详情与故事 (Detail View) -->
+        <div id="view-detail" class="hidden absolute top-0 left-0 w-full h-full bg-[#f8fdf9] z-20 overflow-y-auto hide-scrollbar fade-in">
+            <!-- 顶部图片与返回按钮 -->
+            <div class="relative w-full h-72">
+                <img id="detail-plant-image" src="" class="w-full h-full object-cover" alt="植物图片">
+                <button onclick="closeDetail()" class="absolute top-6 left-4 w-10 h-10 bg-white/70 backdrop-blur-md rounded-full flex justify-center items-center text-gray-800 shadow-sm">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </button>
+                <!-- 更换图片按钮 -->
+                <button onclick="changePlantImage()" class="absolute top-6 right-4 px-4 py-2 bg-white/80 backdrop-blur-md rounded-full flex justify-center items-center text-gray-800 shadow-sm hover:bg-white transition text-sm font-bold">
+                    <i class="fa-solid fa-camera mr-2 text-green-600"></i> 替换封面图
+                </button>
+            </div>
+
+            <!-- 基本信息悬浮卡 -->
+            <div class="relative -mt-10 mx-4 bg-white p-5 rounded-2xl shadow-md border border-green-50">
+                <div class="flex justify-between items-end mb-2">
+                    <h1 id="detail-plant-name" class="text-2xl font-bold text-green-800"></h1>
+                    <span id="detail-created-date" class="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full"></span>
+                </div>
+                <div class="text-sm text-gray-600 space-y-1 mt-3">
+                    <p id="detail-english-name" class="mb-2"></p>
+                    <p><span id="detail-flowering-period"></span></p>
+                    <p><span id="detail-meaning"></span></p>
+                    <p><span id="detail-trivia"></span></p>
+                    <!-- 详情页原来的 input 替换为 span -->
+                    <p class="flex items-center">
+                        <strong>位置：</strong> 
+                        <span id="detail-location" contenteditable="true" class="ml-2 bg-gray-50 border border-gray-200 rounded px-2 py-1 text-sm outline-none focus:border-green-400 text-gray-700 min-w-[5rem] inline-block transition-all"></span>
+                        <i class="fa-solid fa-pen text-gray-400 ml-2 text-xs"></i>
+                    </p>
+                </div>
+            </div>
+
+            <!-- 故事记录区 -->
+            <div class="p-6 pb-24">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-lg font-bold text-gray-800">和它的故事</h2>
+                    <button onclick="openWriteStoryModal()" class="text-green-500 font-bold text-sm bg-green-50 px-3 py-1 rounded-full hover:bg-green-100">
+                        + 写随笔
+                    </button>
+                </div>
+
+                <!-- 时间轴样式的故事列表 -->
+                <div id="stories-timeline" class="border-l-2 border-green-200 ml-3 space-y-8">
+                    <!-- 故事将通过JS动态加载 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 底部导航栏 (Bottom Tab Bar) -->
+        <!-- 修改后 -->
+        <div class="w-full bg-white/80 backdrop-blur-md border-t border-gray-100 pb-safe z-50 mt-auto shrink-0">
+            <div class="flex justify-around items-center h-16">
+                <button onclick="switchTab('identify')" id="tab-identify" class="flex flex-col items-center justify-center w-full h-full text-green-600 transition">
+                    <i class="fa-solid fa-expand text-xl mb-1"></i>
+                    <span class="text-[10px] font-bold">识别</span>
+                </button>
+                <button onclick="switchTab('garden')" id="tab-garden" class="flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-green-500 transition">
+                    <i class="fa-solid fa-leaf text-xl mb-1"></i>
+                    <span class="text-[10px] font-bold">花草苑</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 写随笔弹窗 Modal -->
+        <div id="write-story-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+            <!-- 半透明黑色遮罩 -->
+            <div class="absolute inset-0 bg-black/50" onclick="closeWriteStoryModal()"></div>
+            
+            <!-- Modal 卡片 -->
+            <div class="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full mx-4 p-6">
+                <!-- 关闭按钮 -->
+                <button onclick="closeWriteStoryModal()" class="absolute top-4 right-4 w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition z-10">
+                    <i class="fa-solid fa-times text-gray-600"></i>
+                </button>
+                
+                <!-- 标题 -->
+                <h3 class="text-lg font-bold text-gray-800 mb-4">写下植物故事</h3>
+                
+                <!-- 文本输入 -->
+                <div class="mb-4">
+                    <textarea id="story-content" placeholder="记录下这株植物的故事吧..." rows="6" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-green-400 text-sm resize-none"></textarea>
+                </div>
+                
+                <!-- 图片上传 -->
+                <div class="mb-4">
+                    <label class="text-green-600 font-semibold text-sm block mb-2">添加图片（可选）</label>
+                    <input id="story-image" type="file" accept="image/*" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-green-400 text-sm">
+                </div>
+                
+                <!-- 按钮组 -->
+                <div class="flex gap-3">
+                    <button onclick="closeWriteStoryModal()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 rounded-full transition">
+                        取消
+                    </button>
+                    <button onclick="saveStory()" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-full transition">
+                        保存故事
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 删除确认弹窗 Modal -->
+        <div id="delete-confirm-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+            <!-- 半透明黑色遮罩 -->
+            <div class="absolute inset-0 bg-black/50" onclick="closeDeleteModal()"></div>
+            
+            <!-- Modal 卡片 -->
+            <div class="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full mx-4 p-6">
+                <!-- 关闭按钮 -->
+                <button onclick="closeDeleteModal()" class="absolute top-4 right-4 w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition z-10">
+                    <i class="fa-solid fa-times text-gray-600"></i>
+                </button>
+                
+                <!-- 警告图标 -->
+                <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fa-solid fa-exclamation-triangle text-red-500 text-2xl"></i>
+                </div>
+                
+                <!-- 确认信息 -->
+                <div class="text-center mb-6">
+                    <h3 class="text-lg font-bold text-gray-800 mb-2">确认删除</h3>
+                    <p class="text-sm text-gray-600">确定要删除这株植物吗？删除后将无法恢复。</p>
+                </div>
+                
+                <!-- 按钮组 -->
+                <div class="flex gap-3">
+                    <button onclick="closeDeleteModal()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 rounded-full transition">
+                        取消
+                    </button>
+                    <button onclick="confirmDelete()" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-full transition">
+                        删除
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- JavaScript 交互逻辑 -->
+    <script>
+        // Tab 切换逻辑
+        function switchTab(tab) {
+            const vIdentify = document.getElementById('view-identify');
+            const vGarden = document.getElementById('view-garden');
+            const tIdentify = document.getElementById('tab-identify');
+            const tGarden = document.getElementById('tab-garden');
+
+            // 隐藏详情页(如果打开着)
+            closeDetail();
+
+            if (tab === 'identify') {
+                vIdentify.classList.remove('hidden');
+                vGarden.classList.add('hidden');
+                
+                tIdentify.classList.replace('text-gray-400', 'text-green-600');
+                tGarden.classList.replace('text-green-600', 'text-gray-400');
+            } else {
+                vIdentify.classList.add('hidden');
+                vGarden.classList.remove('hidden');
+                
+                tGarden.classList.replace('text-gray-400', 'text-green-600');
+                tIdentify.classList.replace('text-green-600', 'text-gray-400');
+                
+                // 切换到花草苑时刷新数据
+                loadGardenPlants();
+            }
+        }
+
+        // Supabase 配置
+        const supabaseUrl = 'https://puxfddsmsjxeorjiovbb.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1eGZkZHNtc2p4ZW9yamlvdmJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMTExNzAsImV4cCI6MjA5Mzc4NzE3MH0.55nNn85QiRpWfE1wcnEoCl9yW70jdCkCg3JL5J-QbKk';
+        const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+        
+        const AI_API_KEY = 'sk-5680994452b742a3a3ebeeccafaede1d'; // ⚠️ 请把这里换成你真实的阿里千问 API Key
+        const AI_API_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions';
+
+        // 全局变量存储当前图片数据
+        let currentImageData = null;
+        let currentPlantData = null;
+        let currentBase64Data = null;
+        
+        // 加载消息轮播相关变量
+        let loadingMessageInterval = null;
+        let currentMessageIndex = 0;
+        const loadingMessages = [
+            '正在连线植物学家...',
+            '翻阅植物图鉴中...',
+            '发现有趣的叶片纹理...',
+            '分析花瓣形状特征...',
+            '匹配植物数据库...',
+            '识别生长环境特征...'
+        ];
+
+        // 初始化文件上传事件
+        document.addEventListener('DOMContentLoaded', function() {
+            const uploadBox = document.getElementById('upload-box');
+            const fileInput = document.getElementById('file-input');
+            
+            // 点击上传框触发文件选择
+            uploadBox.addEventListener('click', function() {
+                fileInput.click();
+            });
+            
+            // 文件选择事件
+            fileInput.addEventListener('change', handleFileSelect);
+            
+            // 初始化加载花草苑数据
+            loadGardenPlants();
+        });
+
+        // 压缩图片函数
+        function compressImage(file, maxWidth = 600, maxHeight = 600, quality = 0.6) {
+            return new Promise((resolve) => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const img = new Image();
+                
+                img.onload = function() {
+                    // 恢复画质：将长边缩放到指定尺寸
+                    let { width, height } = img;
+                    
+                    // 计算缩放比例，确保长边不超过指定尺寸
+                    const ratio = Math.min(maxWidth / width, maxHeight / height, 1);
+                    width *= ratio;
+                    height *= ratio;
+                    
+                    // 设置 canvas 尺寸
+                    canvas.width = width;
+                    canvas.height = height;
+                    
+                    // 绘制压缩后的图片
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // 转换为 Base64，使用WebP格式实现极致压缩
+                    const compressedDataUrl = canvas.toDataURL('image/webp', quality);
+                    resolve(compressedDataUrl);
+                };
+                
+                img.src = URL.createObjectURL(file);
+            });
+        }
+
+        // 处理文件选择
+        async function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            // 直接把整个 file 传过去，不用在这里转 base64 了
+            startPlantIdentification(file);
+        }
+
+        // 开始植物识别（带自动重试）
+        // 开始植物识别（前端直连 AI 版）
+        async function startPlantIdentification(file) {
+            const uploadBox = document.getElementById('upload-box');
+            const scanningBox = document.getElementById('scanning-box');
+            
+            uploadBox.classList.add('hidden');
+            scanningBox.classList.remove('hidden');
+            startLoadingMessages();
+
+            try {
+                // 1. 压缩图片 (保持画质)
+                const compressedDataUrl = await compressImage(file, 1024, 1024, 0.8);
+                const blob = await (await fetch(compressedDataUrl)).blob();
+                
+                // 2. 先把照片存到你的 Supabase 桶里
+                const fileName = `temp_${Date.now()}.jpg`;
+                const { data: uploadData, error: uploadError } = await supabaseClient.storage
+                    .from('flower-gallery')
+                    .upload(fileName, blob);
+
+                if (uploadError) throw new Error(`图片上传失败: ${uploadError.message}`);
+
+                // 3. 获取图片的公网 URL
+                const { data: { publicUrl } } = supabaseClient.storage
+                    .from('flower-gallery')
+                    .getPublicUrl(fileName);
+                
+                // 【重点】把 URL 记下来，留给后面“存入花草苑”使用
+                window.currentUploadedUrl = publicUrl; 
+
+                // 4. 前端直接呼叫千问大模型 (绕过 Supabase 超时限制)
+                const response = await fetch(AI_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${AI_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: 'qwen3.5-omni-flash',
+                        messages:[
+                            {
+                                role: 'user',
+                                content:[
+                                    {
+                                        type: 'text',
+                                        text: 'text: 你是一位隐居山林、对自然万物充满温情的植物学家。请识别图中最中心、最主要的植物。请严格按照以下 JSON 格式输出，严禁任何 markdown 标签（如 ```json）或解释说明。格式如下，"name": "准确的中文名称，若有常用的雅致别名可标注在括号内，小众的就算了（如：虞美人）","english_name": "常用的英文通用名","flowering_period": "若是花，写具体月份；若是观叶/树木，写最美观赏季（如：夏天赏绿叶，秋天赏黄叶；四季常青），禁止使用文绉绉的术语","meaning": "该植物在文化中准确的寓意或象征，用简单词语或短句概括，要求简洁、独特、准确、好理解（如朱砂梅寓意：坚韧不拔，高洁清雅；玫瑰寓意：爱情，尊重与优雅）","trivia": "50字内趣味点。可以是独特的生存策略、命名背后的历史瞬间、或植物学怪癖。拒绝平庸的养护建议，可以联系诗词、典故、外国故事等等，要像讲故事一样有温度。要求：句子可以稍微长一些，保证可读性；同时保证准确性，不可出现虚假编造或错误内容"。 【核心准则】：1.去噪与聚焦：若图中有多株植物，仅识别视觉中心最突出的主体。2.拒绝幻觉：若图中主体植物特征模糊或无法确定，name 字段请返回“某种[类别]（待鉴定）”，并在 trivia 中注明理由。3. 精准命名：name 字段仅输出该植物最核心的名字，严禁为了“科普”而带入易混淆植物（例如：绝对禁止写成“芍药（牡丹）”或“蔷薇（月季）”）。4.语调要求：文字需洗练、充满对自然的敬畏感，避免机械化、说明书式的陈述。'
+                                    },
+                                    {
+                                        type: 'image_url',
+                                        image_url: { url: publicUrl }
+                                    }
+                                ]
+                            }
+                        ]
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`AI 服务异常，状态码: ${response.status}`);
+                }
+
+                // 5. 拿到 AI 的原话
+                const resultData = await response.json();
+                const aiReply = resultData.choices[0].message.content;
+
+                // 6. 解析 JSON（清洗多余的 markdown 符号）
+                let cleanText = aiReply.replace(/```json/gi, '').replace(/```/g, '').trim();
+                let plantInfo;
+                try {
+                    plantInfo = JSON.parse(cleanText);
+                } catch (e) {
+                    console.error("解析失败的原文:", cleanText);
+                    plantInfo = { name: "未知植物", english_name: "", flowering_period: "请补充", meaning: "请补充", trivia: "AI开小差了，可手动修改名字" };
+                }
+
+                currentPlantData = plantInfo;
+                currentImageData = compressedDataUrl; 
+                
+                stopLoadingMessages();
+                showResultModal();
+
+            } catch (error) {
+                console.error('识别失败:', error);
+                stopLoadingMessages();
+                showToast(getFriendlyErrorMessage(error.message));
+                scanningBox.classList.add('hidden');
+                uploadBox.classList.remove('hidden');
+            }
+        }
+
+        // 启动加载消息轮播
+        function startLoadingMessages() {
+            currentMessageIndex = 0;
+            updateLoadingMessage();
+            loadingMessageInterval = setInterval(updateLoadingMessage, 1500);
+        }
+
+        // 更新加载消息
+        function updateLoadingMessage() {
+            const messageElement = document.querySelector('#scanning-box .absolute.bottom-4');
+            if (messageElement) {
+                messageElement.textContent = loadingMessages[currentMessageIndex];
+                currentMessageIndex = (currentMessageIndex + 1) % loadingMessages.length;
+            }
+        }
+
+        // 停止加载消息轮播
+        function stopLoadingMessages() {
+            if (loadingMessageInterval) {
+                clearInterval(loadingMessageInterval);
+                loadingMessageInterval = null;
+            }
+        }
+
+        // 显示Toast提示
+        function showToast(message, type = 'error') {
+            // 移除已存在的toast
+            const existingToast = document.getElementById('toast-notification');
+            if (existingToast) {
+                existingToast.remove();
+            }
+
+            // 创建toast元素
+            const toast = document.createElement('div');
+            toast.id = 'toast-notification';
+            toast.className = `fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-lg transition-all duration-300 ${
+                type === 'error' ? 'bg-red-500 text-white' : 'bg-green-500 text-white'
+            }`;
+            toast.textContent = message;
+
+            // 添加到页面
+            document.body.appendChild(toast);
+
+            // 3秒后自动消失
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // 获取友好的错误消息
+        function getFriendlyErrorMessage(originalError) {
+            if (originalError.includes('超时')) {
+                return '这株植物太神秘了，网络有点开小差，请换个角度再试一次～';
+            } else if (originalError.includes('过大')) {
+                return '图片有点大哦，请选择一张小一点的照片试试～';
+            } else if (originalError.includes('ERROR_HTTP') || originalError.includes('ERROR_SQL')) {
+                return '植物专家正在休息，请稍后再来认识这株植物～';
+            } else {
+                return '这株植物太害羞了，请换个角度再试一次～';
+            }
+        }
+
+        // 显示重试对话框
+        function showRetryDialog(errorMessage) {
+            const scanningBox = document.getElementById('scanning-box');
+            const retryModal = document.getElementById('retry-modal');
+            
+            // 隐藏扫描框
+            scanningBox.classList.add('hidden');
+            
+            // 设置错误信息
+            document.getElementById('retry-error-message').textContent = errorMessage;
+            
+            // 显示重试弹窗
+            retryModal.classList.remove('hidden');
+        }
+
+        // 重试识别
+        function retryIdentification() {
+            const retryModal = document.getElementById('retry-modal');
+            const uploadBox = document.getElementById('upload-box');
+            
+            // 隐藏重试弹窗
+            retryModal.classList.add('hidden');
+            
+            // 恢复上传框
+            uploadBox.classList.remove('hidden');
+        }
+
+        // 取消重试
+        function cancelRetry() {
+            const retryModal = document.getElementById('retry-modal');
+            const uploadBox = document.getElementById('upload-box');
+            
+            // 隐藏重试弹窗
+            retryModal.classList.add('hidden');
+            
+            // 恢复上传框并清空数据
+            uploadBox.classList.remove('hidden');
+            document.getElementById('file-input').value = '';
+            currentImageData = null;
+            currentPlantData = null;
+            currentBase64Data = null;
+        }
+
+        // 显示识别结果弹窗
+        function showResultModal() {
+            const scanningBox = document.getElementById('scanning-box');
+            const modal = document.getElementById('result-modal');
+            
+            // 隐藏扫描框
+            scanningBox.classList.add('hidden');
+            
+            // 填充数据到弹窗
+            document.getElementById('modal-plant-image').src = currentImageData;
+            document.getElementById('modal-plant-name-input').value = currentPlantData.name || '未知植物';
+            document.getElementById('modal-english-name').textContent = currentPlantData.english_name || '';
+            document.getElementById('modal-flowering-period').textContent = currentPlantData.flowering_period || '未知';
+            document.getElementById('modal-meaning').textContent = currentPlantData.meaning || '未知';
+            document.getElementById('modal-trivia').textContent = currentPlantData.trivia || '未知';
+            
+            // 清空用户输入项
+            document.getElementById('modal-location').value = '';
+            document.getElementById('modal-notes').value = '';
+            
+            // 显示弹窗
+            modal.classList.remove('hidden');
+        }
+
+        // 关闭弹窗
+        function closeModal() {
+            const modal = document.getElementById('result-modal');
+            const uploadBox = document.getElementById('upload-box');
+            const fileInput = document.getElementById('file-input');
+            
+            // 隐藏弹窗
+            modal.classList.add('hidden');
+            
+            // 恢复上传框
+            uploadBox.classList.remove('hidden');
+            
+            // 清空文件输入和数据
+            fileInput.value = '';
+            currentImageData = null;
+            currentPlantData = null;
+            currentBase64Data = null;
+        }
+
+        // 存入花草苑
+        // 存入花草苑 (直接存数据库)
+        async function saveToGarden() {
+            // 检查有没有刚才上传好的图片 URL
+            if (!currentPlantData || !window.currentUploadedUrl) {
+                showToast('数据不完整，请重新识别', 'error');
+                return;
+            }
+            
+            try {
+                const location = document.getElementById('modal-location').value.trim();
+                const notes = document.getElementById('modal-notes').value.trim();
+                
+                // 拿到用户可能修改过的新名字
+                const finalName = document.getElementById('modal-plant-name-input').value.trim();
+
+                // 存入植物基础表
+                const { data: plantData, error: insertError } = await supabaseClient
+                    .from('flower_plants')
+                    .insert({
+                        name: finalName || '未知植物',
+                        english_name: currentPlantData.english_name || '',
+                        flowering_period: currentPlantData.flowering_period || '未知',
+                        meaning: currentPlantData.meaning || '未知',
+                        trivia: currentPlantData.trivia || '未知',
+                        location: location || '',
+                        image_url: window.currentUploadedUrl, // 直接使用全局图片 URL
+                        created_at: new Date().toISOString()
+                    })
+                    .select()
+                    .single();
+                
+                if (insertError) throw new Error(`数据保存失败: ${insertError.message}`);
+                
+                // 如果有随笔，存入故事表
+                if (notes) {
+                    await supabaseClient.from('flower_stories').insert({
+                        plant_id: plantData.id,
+                        content: notes,
+                        image_url: window.currentUploadedUrl,
+                        created_at: new Date().toISOString()
+                    });
+                }
+                
+                showToast('成功存入花草苑！', 'success');
+                closeModal();
+                switchTab('garden');
+                loadGardenPlants();
+                
+            } catch (error) {
+                console.error('保存失败:', error);
+                showToast('保存失败：' + error.message, 'error');
+            }
+        }
+
+        // 加载花草苑植物列表
+        async function loadGardenPlants() {
+            try {
+                console.log('开始加载花草苑数据...');
+                const { data: plants, error } = await supabaseClient
+                    .from('flower_plants')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                
+                if (error) {
+                    console.error('加载植物列表失败:', error);
+                    return;
+                }
+                
+                console.log('加载到的植物数据:', plants);
+                
+                // 更新页面显示
+                updateGardenView(plants);
+                
+            } catch (error) {
+                console.error('加载植物列表错误:', error);
+            }
+        }
+        
+        // 更新花草苑页面显示
+        function updateGardenView(plants) {
+            console.log('开始更新花园视图，植物数量:', plants.length);
+            
+            const gardenGrid = document.querySelector('#view-garden .grid');
+            const plantCount = document.querySelector('#view-garden p.text-sm.text-green-600');
+            
+            console.log('找到的元素:', { gardenGrid, plantCount });
+            
+            if (!gardenGrid || !plantCount) {
+                console.error('找不到花园视图的必要元素');
+                return;
+            }
+            
+            // 更新植物数量
+            plantCount.textContent = `共记录了 ${plants.length} 株植物`;
+            
+            // 清空现有内容
+            gardenGrid.innerHTML = '';
+            
+            // 生成植物卡片
+            plants.forEach((plant, index) => {
+                console.log(`生成第 ${index + 1} 个植物卡片:`, plant);
+                
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition cursor-pointer relative';
+                card.onclick = () => openPlantDetail(plant);
+                
+                card.innerHTML = `
+                    <div class="relative group">
+                        <img src="${plant.image_url || 'https://images.unsplash.com/photo-1555037015-1498966bcd7c?auto=format&fit=crop&w=400&q=80'}" class="w-full h-40 object-cover transition duration-500 group-hover:scale-105" alt="${plant.name}">
+                        <!-- 底部微渐变 -->
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition duration-300"></div>
+                        <!-- 删除按钮 (悬浮显示) -->
+                        <button class="delete-btn absolute top-2 right-2 w-8 h-8 bg-white/90 backdrop-blur rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all z-10 hover:bg-red-50 shadow-sm">
+                            <i class="fa-solid fa-trash-alt text-sm text-gray-500 hover:text-red-500"></i>
+                        </button>
+                    </div>
+                    <div class="p-3 bg-white relative z-10">
+                        <h3 class="font-bold text-gray-800 text-lg truncate">${plant.name}</h3>
+                        <div class="mt-2">
+                            ${plant.location 
+                                ? `<span class="inline-flex items-center bg-green-50 text-green-600 px-2 py-1 rounded-full text-xs font-medium"><i class="fa-solid fa-location-dot mr-1"></i>${plant.location}</span>` 
+                                : `<span class="inline-flex items-center bg-gray-50 text-gray-400 px-2 py-1 rounded-full text-xs"><i class="fa-solid fa-location-dot mr-1"></i>暂未填写位置</span>`
+                            }
+                        </div>
+                    </div>
+                `;
+                
+                // 添加删除按钮事件监听器
+                const deleteBtn = card.querySelector('.delete-btn');
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    console.log('删除按钮被点击，植物ID:', plant.id);
+                    deletePlant(plant.id);
+                });
+                
+                gardenGrid.appendChild(card);
+                console.log(`已添加第 ${index + 1} 个植物卡片到页面`);
+            });
+            
+            console.log('花园视图更新完成');
+        }
+        
+        // 全局变量存储待删除的植物ID
+        let plantToDelete = null;
+
+        // 打开删除确认弹窗
+        function openDeleteModal(plantId) {
+            plantToDelete = plantId;
+            document.getElementById('delete-confirm-modal').classList.remove('hidden');
+        }
+
+        // 关闭删除确认弹窗
+        function closeDeleteModal() {
+            document.getElementById('delete-confirm-modal').classList.add('hidden');
+            plantToDelete = null;
+        }
+
+        // 确认删除
+        async function confirmDelete() {
+            if (!plantToDelete) return;
+            
+            try {
+                console.log('开始删除植物:', plantToDelete);
+                const { error } = await supabaseClient
+                    .from('flower_plants')
+                    .delete()
+                    .eq('id', plantToDelete);
+                
+                if (error) {
+                    console.error('删除数据库错误:', error);
+                    throw new Error(`删除失败: ${error.message}`);
+                }
+                
+                console.log('植物删除成功');
+                showToast('植物已删除', 'success');
+                closeDeleteModal();
+                loadGardenPlants();
+                
+            } catch (error) {
+                console.error('删除失败:', error);
+                showToast('删除失败，请重试：' + error.message, 'error');
+            }
+        }
+
+        // 删除植物
+        async function deletePlant(plantId) {
+            console.log('删除植物函数被调用，植物ID:', plantId);
+            openDeleteModal(plantId);
+        }
+
+        // 打开植物详情页
+        async function openPlantDetail(plant) {
+            // 显示详情页
+            document.getElementById('view-detail').classList.remove('hidden');
+            
+            // 填充植物信息
+            document.getElementById('detail-plant-image').src = plant.image_url || '';
+            document.getElementById('detail-plant-name').textContent = plant.name || '未知植物';
+            document.getElementById('detail-plant-name').setAttribute('data-plant-id', plant.id);
+            document.getElementById('detail-created-date').textContent = `首次记录: ${new Date(plant.created_at).toLocaleDateString()}`;
+            document.getElementById('detail-english-name').innerHTML = plant.english_name ? `<strong>英语名：</strong>${plant.english_name}` : '';
+            document.getElementById('detail-flowering-period').innerHTML = plant.flowering_period ? `<strong>观赏期：</strong>${plant.flowering_period}` : '';
+            document.getElementById('detail-meaning').innerHTML = plant.meaning ? `<strong>寓意：</strong>${plant.meaning}` : '';
+            document.getElementById('detail-trivia').innerHTML = plant.trivia ? `<strong>小知识：</strong>${plant.trivia}` : '';
+            
+            // 【关键点】：因为变成了 span，这里使用 textContent，而不是 .value
+            const locationSpan = document.getElementById('detail-location');
+            locationSpan.textContent = plant.location || '';
+            
+            // 加载植物故事
+            loadPlantStories(plant.id);
+            
+            // 移除旧监听器（通过克隆 span 实现）
+            const newLocationSpan = locationSpan.cloneNode(true);
+            locationSpan.parentNode.replaceChild(newLocationSpan, locationSpan);
+            
+            // 添加新监听器
+            newLocationSpan.addEventListener('blur', () => updatePlantLocation(plant.id, newLocationSpan.textContent.trim()));
+            newLocationSpan.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault(); // 防止换行
+                    newLocationSpan.blur(); // 触发 blur 保存
+                }
+            });
+        }
+
+        // 更新植物位置
+        async function updatePlantLocation(plantId, location) {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('flower_plants')
+                    .update({ location: location })
+                    .eq('id', plantId); // 注意：update 后不需要 .select().single() 也能执行更新
+                
+                if (error) throw error;
+                
+                showToast('位置已更新', 'success');
+                loadGardenPlants(); // 刷新花园视图
+            } catch (error) {
+                console.error('更新位置失败:', error);
+                showToast('更新位置失败', 'error');
+            }
+        }
+
+        // 更换植物图片
+        async function changePlantImage() {
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = 'image/*';
+            fileInput.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                try {
+                    // 获取当前植物ID
+                    const currentPlantId = document.getElementById('detail-plant-name').getAttribute('data-plant-id');
+                    if (!currentPlantId) {
+                        throw new Error('无法获取植物ID');
+                    }
+                    
+                    // 压缩图片
+                    const compressedDataUrl = await compressImage(file);
+                    const base64Data = compressedDataUrl.split(',')[1];
+                    
+                    // 上传新图片
+                    const fileName = `${Date.now()}.jpg`;
+                    const base64Response = await fetch(`data:image/jpeg;base64,${base64Data}`);
+                    const blob = await base64Response.blob();
+                    
+                    const { data: uploadData, error: uploadError } = await supabaseClient.storage
+                        .from('flower-gallery')
+                        .upload(fileName, blob, {
+                            contentType: 'image/jpeg',
+                            cacheControl: '3600',
+                            upsert: false
+                        });
+                    
+                    if (uploadError) {
+                        throw new Error(`图片上传失败: ${uploadError.message}`);
+                    }
+                    
+                    const { data: { publicUrl } } = supabaseClient.storage
+                        .from('flower-gallery')
+                        .getPublicUrl(fileName);
+                    
+                    // 更新数据库中的图片URL
+                    const { data: updateData, error: updateError } = await supabaseClient
+                        .from('flower_plants')
+                        .update({ image_url: publicUrl })
+                        .eq('id', currentPlantId)
+                        .select()
+                        .single();
+                    
+                    if (updateError) {
+                        throw new Error(`图片更新失败: ${updateError.message}`);
+                    }
+                    
+                    console.log('图片更新成功:', updateData);
+                    
+                    // 更新页面显示
+                    document.getElementById('detail-plant-image').src = publicUrl;
+                    showToast('图片已更新', 'success');
+                    
+                    // 刷新花园视图以显示新图片
+                    loadGardenPlants();
+                    
+                } catch (error) {
+                    console.error('更换图片失败:', error);
+                    showToast('更换图片失败: ' + error.message, 'error');
+                }
+            };
+            
+            fileInput.click();
+        }
+        
+        // 加载植物故事
+        async function loadPlantStories(plantId) {
+            try {
+                const { data: stories, error } = await supabaseClient
+                    .from('flower_stories')
+                    .select('*')
+                    .eq('plant_id', plantId)
+                    .order('created_at', { ascending: false });
+                
+                if (error) {
+                    console.error('加载故事失败:', error);
+                    return;
+                }
+                
+                // 渲染故事时间轴
+                renderStoriesTimeline(stories || []);
+                
+            } catch (error) {
+                console.error('加载故事错误:', error);
+            }
+        }
+
+        // 渲染故事时间轴
+        function renderStoriesTimeline(stories) {
+            const timeline = document.getElementById('stories-timeline');
+            if (!timeline) return;
+            
+            // 清空现有内容
+            timeline.innerHTML = '';
+            
+            if (stories.length === 0) {
+                timeline.innerHTML = `
+                    <div class="text-center text-gray-500 py-8">
+                        <i class="fa-solid fa-book-open text-2xl mb-4"></i>
+                        <p>还没有故事，点击上方按钮写下第一个故事吧～</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // 生成故事卡片
+            stories.forEach((story, index) => {
+                const storyCard = document.createElement('div');
+                storyCard.className = 'relative pl-6';
+                
+                const date = new Date(story.created_at);
+                const isToday = date.toDateString() === new Date().toDateString();
+                
+                storyCard.innerHTML = `
+                    <div class="absolute -left-[9px] top-1 w-4 h-4 ${isToday ? 'bg-green-500' : 'bg-green-300'} rounded-full border-4 border-white shadow-sm"></div>
+                    <div class="flex justify-between items-center mb-1">
+                        <p class="text-xs text-gray-400">${isToday ? '今天' : date.toLocaleDateString()}</p>
+                        <!-- 新增：编辑和删除按钮 -->
+                        <div class="flex gap-3">
+                            <button onclick="editStory('${story.id}', \`${story.content.replace(/`/g, "'")}\`, '${story.plant_id}')" class="text-gray-300 hover:text-green-500 transition"><i class="fa-solid fa-pen text-xs"></i></button>
+                            <button onclick="deleteStory('${story.id}', '${story.plant_id}')" class="text-gray-300 hover:text-red-500 transition"><i class="fa-solid fa-trash text-xs"></i></button>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 group">
+                        <p class="text-sm text-gray-700 leading-relaxed mb-3 whitespace-pre-wrap">${story.content}</p>
+                        ${story.image_url ? `<img src="${story.image_url}" class="rounded-xl w-32 h-32 object-cover">` : ''}
+                    </div>
+                `;
+                
+                timeline.appendChild(storyCard);
+            });
+        }
+
+        // 打开详情页
+        function openDetail() {
+            document.getElementById('view-detail').classList.remove('hidden');
+        }
+
+        // 打开写随笔弹窗
+        function openWriteStoryModal() {
+            document.getElementById('write-story-modal').classList.remove('hidden');
+            // 清空输入框
+            document.getElementById('story-content').value = '';
+            document.getElementById('story-image').value = '';
+        }
+
+        // 关闭写随笔弹窗
+        function closeWriteStoryModal() {
+            document.getElementById('write-story-modal').classList.add('hidden');
+        }
+
+        // 保存随笔
+        async function saveStory() {
+            const content = document.getElementById('story-content').value.trim();
+            const imageFile = document.getElementById('story-image').files[0];
+            
+            if (!content) {
+                showToast('请输入随笔内容', 'error');
+                return;
+            }
+            
+            try {
+                let imageUrl = null;
+                
+                // 如果有图片，先上传
+                if (imageFile) {
+                    const compressedDataUrl = await compressImage(imageFile);
+                    const base64Data = compressedDataUrl.split(',')[1];
+                    
+                    const fileName = `${Date.now()}.jpg`;
+                    const base64Response = await fetch(`data:image/jpeg;base64,${base64Data}`);
+                    const blob = await base64Response.blob();
+                    
+                    const { data: uploadData, error: uploadError } = await supabaseClient.storage
+                        .from('flower-gallery')
+                        .upload(fileName, blob, {
+                            contentType: 'image/jpeg',
+                            cacheControl: '3600',
+                            upsert: false
+                        });
+                    
+                    if (uploadError) {
+                        throw new Error(`图片上传失败: ${uploadError.message}`);
+                    }
+                    
+                    const { data: { publicUrl } } = supabaseClient.storage
+                        .from('flower-gallery')
+                        .getPublicUrl(fileName);
+                    
+                    imageUrl = publicUrl;
+                }
+                
+                // 获取当前植物ID
+                const currentPlantId = document.getElementById('detail-plant-name').getAttribute('data-plant-id');
+                
+                // 保存到 flower_stories 表
+                const { data: storyData, error: storyError } = await supabaseClient
+                    .from('flower_stories')
+                    .insert({
+                        plant_id: currentPlantId,
+                        content: content,
+                        image_url: imageUrl,
+                        created_at: new Date().toISOString()
+                    })
+                    .select()
+                    .single();
+                
+                if (storyError) {
+                    throw new Error(`随笔保存失败: ${storyError.message}`);
+                }
+                
+                showToast('随笔已保存', 'success');
+                
+                // 关闭弹窗并刷新故事
+                closeWriteStoryModal();
+                loadPlantStories(currentPlantId);
+                
+            } catch (error) {
+                console.error('保存随笔失败:', error);
+                showToast('保存随笔失败', 'error');
+            }
+        }
+
+        // 关闭详情页
+        function closeDetail() {
+            document.getElementById('view-detail').classList.add('hidden');
+        }
+
+        // 动态删除随笔
+        async function deleteStory(storyId, plantId) {
+            if(!confirm('确定要删除这条记录吗？')) return;
+            try {
+                const { error } = await supabaseClient.from('flower_stories').delete().eq('id', storyId);
+                if(error) throw error;
+                showToast('随笔已删除', 'success');
+                loadPlantStories(plantId); // 实时无刷新更新时间轴
+            } catch (err) {
+                showToast('删除失败: ' + err.message);
+            }
+        }
+
+        // 动态编辑随笔
+        async function editStory(storyId, oldContent, plantId) {
+            const newContent = prompt('修改你的随笔：', oldContent);
+            if (newContent === null || newContent.trim() === oldContent || newContent.trim() === '') return;
+            try {
+                const { error } = await supabaseClient.from('flower_stories').update({ content: newContent.trim() }).eq('id', storyId);
+                if(error) throw error;
+                showToast('随笔已更新', 'success');
+                loadPlantStories(plantId); // 实时无刷新更新时间轴
+            } catch (err) {
+                showToast('更新失败: ' + err.message);
+            }
+        }
+
+    </script>
+</body>
+</html>
